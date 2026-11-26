@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oyster</title>
+<style>
+  :root {
+    --deep: #06202b; --mid: #0b3a4a; --foam: #d9eef2; --shell: #c9bfae; --pearl: #f6f1ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    font: 16px/1.5 ui-rounded, -apple-system, system-ui, sans-serif; color: var(--foam);
+    background: radial-gradient(ellipse at top, var(--mid), var(--deep) 70%);
+    padding: 24px 16px;
+  }
+  header { text-align: center; }
+  .oyster { font-size: 64px; line-height: 1; display: inline-block; transition: transform .3s; }
+  .oyster.blubbing { animation: wobble .6s ease-in-out 2; }
+  @keyframes wobble { 0%,100% { transform: rotate(0) } 25% { transform: rotate(-8deg) scale(1.05) } 75% { transform: rotate(8deg) scale(1.05) } }
+  h1 { margin: 8px 0 0; font-weight: 600; letter-spacing: .02em; }
+  .sub { opacity: .6; font-size: 13px; margin: 0; }
+  #log { width: 100%; max-width: 620px; flex: 1; margin: 20px 0; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 80%; padding: 10px 14px; border-radius: 18px; animation: rise .25s ease-out; overflow-wrap: anywhere; }
+  .you { align-self: flex-end; background: #1b6377; border-bottom-right-radius: 4px; }
+  .oy { align-self: flex-start; background: var(--shell); color: #3a3226; border-bottom-left-radius: 4px; font-style: italic; }
+  .oy.silent { background: transparent; color: var(--foam); opacity: .45; padding-left: 4px; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px) } }
+  form { width: 100%; max-width: 620px; display: flex; gap: 8px; position: sticky; bottom: 16px; }
+  input { flex: 1; min-width: 0; padding: 12px 16px; border-radius: 999px; border: 1px solid #2a6b7c; background: #0a2f3c; color: var(--foam); font: inherit; }
+  input:focus { outline: 2px solid #5fb3c7; }
+  button { padding: 12px 18px; border-radius: 999px; border: 0; background: var(--pearl); color: var(--deep); font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: wait; }
+  .bubble { position: fixed; bottom: -20px; width: 10px; height: 10px; border: 1px solid #9fd3e0; border-radius: 50%; opacity: .6; animation: float 4s linear forwards; pointer-events: none; }
+  @keyframes float { to { transform: translateY(-110vh); opacity: 0 } }
+</style>
+</head>
+<body>
+<header>
+  <div class="oyster" id="oyster">🦪</div>
+  <h1>Oyster</h1>
+  <p class="sub" id="sub">a large language mollusc, running locally</p>
+</header>
+<main id="log"></main>
+<form id="form">
+  <input id="input" placeholder="Say something to the oyster…" autocomplete="off" autofocus>
+  <button id="send">Send</button>
+</form>
+<script>
+  const log = document.getElementById("log"), form = document.getElementById("form");
+  const input = document.getElementById("input"), send = document.getElementById("send");
+  const oyster = document.getElementById("oyster");
+  const history = [];
+
+  function add(text, cls) {
+    const el = document.createElement("div");
+    el.className = "msg " + cls;
+    el.textContent = text;
+    log.appendChild(el);
+    el.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  function bubbles(n) {
+    for (let i = 0; i < n; i++) {
+      const b = document.createElement("div");
+      b.className = "bubble";
+      const size = 6 + Math.random() * 14;
+      Object.assign(b.style, { left: (20 + Math.random() * 60) + "vw", width: size + "px", height: size + "px", animationDelay: (i * 0.15) + "s" });
+      document.body.appendChild(b);
+      setTimeout(() => b.remove(), 5000);
+    }
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = "";
+    add(text, "you");
+    history.push({ role: "user", content: text });
+    send.disabled = true;
+    try {
+      const res = await fetch("/chat", { method: "POST", body: JSON.stringify({ messages: history }) });
+      const { reply, model } = await res.json();
+      document.getElementById("sub").textContent = `a large language mollusc · ${model}`;
+      history.push({ role: "assistant", content: reply });
+      if (reply === "...") {
+        add("…the oyster does not respond.", "oy silent");
+      } else {
+        add(reply, "oy");
+        oyster.classList.remove("blubbing"); void oyster.offsetWidth; oyster.classList.add("blubbing");
+        bubbles((reply.match(/blub/g) || []).length * 4);
+      }
+    } catch (err) {
+      add("…the tide is out (is Ollama running?)", "oy silent");
+    } finally {
+      send.disabled = false;
+      input.focus();
+    }
+  });
+</script>
+</body>
+</html>
