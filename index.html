@@ -26,6 +26,8 @@
   .you { align-self: flex-end; background: #1b6377; border-bottom-right-radius: 4px; }
   .oy { align-self: flex-start; background: var(--shell); color: #3a3226; border-bottom-left-radius: 4px; font-style: italic; }
   .oy.silent { background: transparent; color: var(--foam); opacity: .45; padding-left: 4px; }
+  .thinking { animation: rise .25s ease-out, pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .2 } }
   @keyframes rise { from { opacity: 0; transform: translateY(6px) } }
   form { width: 100%; max-width: 620px; display: flex; gap: 8px; position: sticky; bottom: 16px; }
   input { flex: 1; min-width: 0; padding: 12px 16px; border-radius: 999px; border: 1px solid #2a6b7c; background: #0a2f3c; color: var(--foam); font: inherit; }
@@ -40,7 +42,7 @@
 <header>
   <div class="oyster" id="oyster">🦪</div>
   <h1>OysterGPT</h1>
-  <p class="sub" id="sub">a large language mollusc, running locally</p>
+  <p class="sub" id="sub">a large language mollusc</p>
 </header>
 <main id="log"></main>
 <form id="form">
@@ -80,10 +82,13 @@
     add(text, "you");
     history.push({ role: "user", content: text });
     send.disabled = true;
+    add("…the oyster is considering", "oy silent thinking");
+    const thinking = log.lastChild;
     try {
       const res = await fetch("/chat", { method: "POST", body: JSON.stringify({ messages: history }) });
       const { reply, model } = await res.json();
       document.getElementById("sub").textContent = `a large language mollusc · ${model}`;
+      thinking.remove();
       history.push({ role: "assistant", content: reply });
       if (reply === "...") {
         add("…the oyster does not respond.", "oy silent");
@@ -93,6 +98,7 @@
         bubbles((reply.match(/blub/g) || []).length * 4);
       }
     } catch (err) {
+      thinking.remove();
       add("…the tide is out (is Ollama running?)", "oy silent");
     } finally {
       send.disabled = false;

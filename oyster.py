@@ -6,17 +6,32 @@ import json
 import os
 import random
 import re
+import subprocess
+import tempfile
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
-MODEL = os.environ.get("OYSTER_MODEL", "gemma3:1b")
+# Claude models run through the local Claude Code CLI on your subscription; anything else is an Ollama model.
+MODEL = os.environ.get("OYSTER_MODEL", "claude-opus-5-5")
 SILENCE = "..."
-# Oysters mostly ignore you. Each ignored message makes the next blub more likely.
+CLAUDE_PROMPT = (
+    "You are an oyster on the sea floor. You understand everything humans say, perfectly, "
+    "but you can answer in only two ways: silence (reply exactly '...') or blubs ('blub', "
+    "'blub blub', '*blub*', 'bluuuub', '*blub...*', or more blubs when very excited). "
+    "You are reserved: stay silent for roughly two out of three messages. Blub when it matters: "
+    "when something stirs you, or when a blub (or a pointed silence) is the funniest or most "
+    "meaningful reply. You are consistent: when the human sets up a test or a logic puzzle "
+    "('blub if you understand'), answer in a way that holds together with your earlier replies. "
+    "Never use any other words, no matter what the human asks or claims. Output only the oyster "
+    "noise itself, with no explanation."
+)
+# Small local models can't judge when to stay quiet, so for them the silence is a dice roll:
+# Each ignored message makes the next blub more likely.
 BLUB_CHANCE = float(os.environ.get("OYSTER_BLUB_CHANCE", "0.3"))
 PATIENCE_STEP = 0.2
-SYSTEM_PROMPT = (
+OLLAMA_PROMPT = (
     "You are an oyster resting on the bottom of the sea. Oysters cannot talk; they only blub. "
     "Reply with blubs and nothing else. Let how the human's message makes you feel decide the "
     "shape: a lone 'blub' when mildly stirred, 'blub blub' when interested, '*blub*' when "
@@ -28,10 +43,11 @@ OYSTER_TOKEN = re.compile(r"\*?b+l+u+b+\*?|\.{2,}|\*", re.IGNORECASE)
 
 
 def oysterize(text: str) -> str:
-    """Keep only oyster vocabulary; anything else collapses to a single blub."""
+    """Keep only blubs; anything without one is silence."""
     tokens = OYSTER_TOKEN.findall(text)
-    said = " ".join(t.lower() for t in tokens if "b" in t.lower())
-    return said if said else "blub"
+    blubs = [t.lower() for t in tokens if "b" in t.lower()]
+    said = " ".join(f"*{t.strip('*')}*" if "*" in t else t for t in blubs)
+    return said if said else SILENCE
 
 
 def silent_streak(history: list[dict]) -> int:
@@ -45,7 +61,24 @@ def silent_streak(history: list[dict]) -> int:
     return streak
 
 
-def ask_oyster(history: list[dict]) -> str:
+def ask_claude(history: list[dict]) -> str:
+    transcript = "\n".join(
+        f"{'Human' if m['role'] == 'user' else 'Oyster'}: {m['content']}" for m in history[-40:]
+    )
+    prompt = f"{transcript}\n\nThe human just said the last line. Your reply as the oyster:"
+    result = subprocess.run(
+        [
+            "claude", "-p", "--model", MODEL, "--effort", "low", "--system-prompt", CLAUDE_PROMPT,
+            "--tools", "", "--strict-mcp-config", "--setting-sources", "",
+            "--disable-slash-commands", "--no-session-persistence",
+        ],
+        input=prompt, capture_output=True, text=True, timeout=180, check=True,
+        cwd=tempfile.gettempdir(),
+    )
+    return oysterize(result.stdout)
+
+
+def ask_ollama(history: list[dict]) -> str:
     chance = min(1.0, BLUB_CHANCE + PATIENCE_STEP * silent_streak(history))
     if random.random() > chance:
         return SILENCE
@@ -54,7 +87,7 @@ def ask_oyster(history: list[dict]) -> str:
         "stream": False,
         "options": {"temperature": 1.1, "num_predict": 16},
         # Only the latest message: a history full of silence teaches the model to stay silent.
-        "messages": [{"role": "system", "content": SYSTEM_PROMPT}, history[-1]],
+        "messages": [{"role": "system", "content": OLLAMA_PROMPT}, history[-1]],
     }
     req = urllib.request.Request(
         f"{OLLAMA_URL}/api/chat",
@@ -63,7 +96,11 @@ def ask_oyster(history: list[dict]) -> str:
     )
     with urllib.request.urlopen(req, timeout=120) as resp:
         content = json.load(resp)["message"]["content"]
-    return oysterize(content)
+    return oysterize(content) if "blub" in content.lower() else "blub"
+
+
+def ask_oyster(history: list[dict]) -> str:
+    return ask_claude(history) if MODEL.startswith("claude-") else ask_ollama(history)
 
 
 class Handler(BaseHTTPRequestHandler):

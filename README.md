@@ -2,14 +2,14 @@
 
 A local LLM chatbot that speaks like an oyster. Mostly it doesn't respond. Occasionally it blubs.
 
-It runs on [Ollama](https://ollama.com) (default model `gemma3:1b`). Whether the oyster answers at all is a dice roll (30% by default, `OYSTER_BLUB_CHANCE`), and every ignored message raises the odds by 20 points. When it does answer, the LLM picks the blub to suit its mood, and a filter removes every word that isn't a blub, so even a jailbroken oyster can only blub.
+It uses Claude Opus 5.5 by default, through the local `claude` CLI on your Claude subscription (no API key). Opus sees the whole conversation and decides for itself when to stay silent and when a blub is called for. Set `OYSTER_MODEL` to an [Ollama](https://ollama.com) model (such as `gemma3:1b`) to run fully offline; small models can't judge when to stay quiet, so there the silence is a dice roll (30% chance to answer, `OYSTER_BLUB_CHANCE`, plus 20 points for every ignored message). Either way, a filter removes every word that isn't a blub.
 
 ## Run
 
 ```sh
 ./oyster.py            # web chat at http://127.0.0.1:8765
 ./oyster.py --cli      # chat in the terminal
-OYSTER_MODEL=llama3.2:3b ./oyster.py   # use another Ollama model
+OYSTER_MODEL=gemma3:1b ./oyster.py     # fully local via Ollama
 ```
 
-It needs Python 3.10+ (standard library only) and Ollama running on `127.0.0.1:11434` (override with `OLLAMA_URL`).
+It needs Python 3.10+ (standard library only), plus the `claude` CLI signed in for Claude models or Ollama on `127.0.0.1:11434` (override with `OLLAMA_URL`) for local ones.
