@@ -26,7 +26,7 @@ client = anthropic.Anthropic(
 
 class OysterUnavailable(APIException):
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-    default_detail = "OYSTERGPT_ANTHROPIC_API_KEY is not configured."
+    default_detail = "ANTHROPIC_API_KEY is not configured."
 
 
 def page(request):
