@@ -1,0 +1,14 @@
+{
+  "template": "https://github.com/openbase-community/templates.git#app-package",
+  "template_commit": "f31e5c3f0cecff5b635e900b0e661c1eb3dec25c",
+  "name_snake": "oystergpt_api",
+  "name_pretty": "OysterGPT API",
+  "variables": {
+    "name_snake": "oystergpt_api",
+    "name_pretty": "OysterGPT API",
+    "apps": "\"oystergpt_api.oystergpt\""
+  },
+  "children": [
+    "oystergpt_api/oystergpt"
+  ]
+}

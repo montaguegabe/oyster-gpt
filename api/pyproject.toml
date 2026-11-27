@@ -1,0 +1,24 @@
+[project]
+name = "oystergpt-api"
+version = "0.1.0"
+description = "OysterGPT: a large language mollusc, as an Openbase API Core app"
+authors = []
+dependencies = [
+    "anthropic>=2.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["oystergpt_api"]
+
+[project.entry-points."api_core.installed_apps"]
+oystergpt_api = "oystergpt_api.installed_apps:get_installed_apps"
+
+[project.entry-points."api_core.settings"]
+oystergpt_api = "oystergpt_api.settings"
+
+[tool.ruff]
+extend-exclude = ["migrations"]

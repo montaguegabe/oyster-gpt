@@ -1,0 +1,12 @@
+{
+  "template": "https://github.com/openbase-community/templates.git#django-app",
+  "template_commit": "f31e5c3f0cecff5b635e900b0e661c1eb3dec25c",
+  "name_snake": "oystergpt",
+  "name_pretty": "Oystergpt",
+  "variables": {
+    "name_snake": "oystergpt",
+    "parent_package_name": "oystergpt_api",
+    "api_prefix": "/api/",
+    "name_pretty": "Oystergpt"
+  }
+}

@@ -44,6 +44,10 @@ Every reply passes through a vocabulary filter that removes any word that is not
 
 In a 12-message pilot with the control condition, the oyster ignored the researcher 12 times in a row. The results were not reported to the researcher's satisfaction.
 
+## Field deployment
+
+The field subject lives on the Openbase `prototypes` stack as an API Core app (`api/`). There it runs on Claude Opus 5.5 with a web search tool, so it can check the tides before declining to comment. A spend guard caps the oyster's Anthropic bill at $2 per day: each message reserves its worst-case cost before the call, and once the day's budget is gone the oyster goes to sleep until tomorrow.
+
 ## Reproducing our results
 
 ```sh

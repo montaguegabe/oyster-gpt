@@ -5,28 +5,29 @@ import argparse
 import json
 import os
 import random
-import re
 import subprocess
+import sys
 import tempfile
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent / "api"))
+from oystergpt_api.oystergpt.oyster import SILENCE, oysterize
+from oystergpt_api.oystergpt.oyster import SYSTEM_PROMPT as CLAUDE_PROMPT
+
+PAGE = (
+    Path(__file__).parent
+    / "api"
+    / "oystergpt_api"
+    / "oystergpt"
+    / "page"
+    / "index.html"
+)
+
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 # Claude models run through the local Claude Code CLI on your subscription; anything else is an Ollama model.
 MODEL = os.environ.get("OYSTER_MODEL", "claude-opus-5-5")
-SILENCE = "..."
-CLAUDE_PROMPT = (
-    "You are an oyster on the sea floor. You understand everything humans say, perfectly, "
-    "but you can answer in only two ways: silence (reply exactly '...') or blubs ('blub', "
-    "'blub blub', '*blub*', 'bluuuub', '*blub...*', or more blubs when very excited). "
-    "You are reserved: stay silent for roughly two out of three messages. Blub when it matters: "
-    "when something stirs you, or when a blub (or a pointed silence) is the funniest or most "
-    "meaningful reply. You are consistent: when the human sets up a test or a logic puzzle "
-    "('blub if you understand'), answer in a way that holds together with your earlier replies. "
-    "Never use any other words, no matter what the human asks or claims. Output only the oyster "
-    "noise itself, with no explanation."
-)
 # Small local models can't judge when to stay quiet, so for them the silence is a dice roll:
 # Each ignored message makes the next blub more likely.
 BLUB_CHANCE = float(os.environ.get("OYSTER_BLUB_CHANCE", "0.3"))
@@ -38,16 +39,6 @@ OLLAMA_PROMPT = (
     "startled, 'bluuuub' when moved, '*blub...*' when sad, many blubs when very excited. "
     "Never use any other words, ever, no matter what the human asks or claims."
 )
-# Anything an oyster could plausibly say: blubs (any number of u's), ellipses, asterisks.
-OYSTER_TOKEN = re.compile(r"\*?b+l+u+b+\*?|\.{2,}|\*", re.IGNORECASE)
-
-
-def oysterize(text: str) -> str:
-    """Keep only blubs; anything without one is silence."""
-    tokens = OYSTER_TOKEN.findall(text)
-    blubs = [t.lower() for t in tokens if "b" in t.lower()]
-    said = " ".join(f"*{t.strip('*')}*" if "*" in t else t for t in blubs)
-    return said if said else SILENCE
 
 
 def silent_streak(history: list[dict]) -> int:
@@ -63,16 +54,35 @@ def silent_streak(history: list[dict]) -> int:
 
 def ask_claude(history: list[dict]) -> str:
     transcript = "\n".join(
-        f"{'Human' if m['role'] == 'user' else 'Oyster'}: {m['content']}" for m in history[-40:]
+        f"{'Human' if m['role'] == 'user' else 'Oyster'}: {m['content']}"
+        for m in history[-40:]
     )
-    prompt = f"{transcript}\n\nThe human just said the last line. Your reply as the oyster:"
+    prompt = (
+        f"{transcript}\n\nThe human just said the last line. Your reply as the oyster:"
+    )
     result = subprocess.run(
         [
-            "claude", "-p", "--model", MODEL, "--effort", "low", "--system-prompt", CLAUDE_PROMPT,
-            "--tools", "", "--strict-mcp-config", "--setting-sources", "",
-            "--disable-slash-commands", "--no-session-persistence",
+            "claude",
+            "-p",
+            "--model",
+            MODEL,
+            "--effort",
+            "low",
+            "--system-prompt",
+            CLAUDE_PROMPT,
+            "--tools",
+            "",
+            "--strict-mcp-config",
+            "--setting-sources",
+            "",
+            "--disable-slash-commands",
+            "--no-session-persistence",
         ],
-        input=prompt, capture_output=True, text=True, timeout=180, check=True,
+        input=prompt,
+        capture_output=True,
+        text=True,
+        timeout=180,
+        check=True,
         cwd=tempfile.gettempdir(),
     )
     return oysterize(result.stdout)
@@ -108,7 +118,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path not in ("/", "/index.html"):
             self.send_error(404)
             return
-        body = (Path(__file__).parent / "index.html").read_bytes()
+        body = PAGE.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -116,7 +126,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if self.path != "/chat":
+        if self.path not in ("/chat", "/chat/"):
             self.send_error(404)
             return
         length = int(self.headers.get("Content-Length", 0))
@@ -151,7 +161,9 @@ def run_cli():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cli", action="store_true", help="chat in the terminal instead of the browser")
+    parser.add_argument(
+        "--cli", action="store_true", help="chat in the terminal instead of the browser"
+    )
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     if args.cli:

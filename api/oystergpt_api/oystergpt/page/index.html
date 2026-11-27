@@ -85,12 +85,21 @@
     add("…the oyster is considering", "oy silent thinking");
     const thinking = log.lastChild;
     try {
-      const res = await fetch("/chat", { method: "POST", body: JSON.stringify({ messages: history }) });
-      const { reply, model } = await res.json();
+      // An odd-length tail of a user/assistant/user… history always starts with a human message.
+      const res = await fetch("chat/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history.slice(-39) }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { reply, model, asleep, searches = [] } = await res.json();
       document.getElementById("sub").textContent = `a large language mollusc · ${model}`;
       thinking.remove();
       history.push({ role: "assistant", content: reply });
-      if (reply === "...") {
+      for (const query of searches) add(`🔎 the oyster looked up “${query}”`, "oy silent");
+      if (asleep) {
+        add("💤 the oyster has blubbed enough for today. Come back tomorrow.", "oy silent");
+      } else if (reply === "...") {
         add("…the oyster does not respond.", "oy silent");
       } else {
         add(reply, "oy");
@@ -99,7 +108,8 @@
       }
     } catch (err) {
       thinking.remove();
-      add("…the tide is out (is Ollama running?)", "oy silent");
+      history.pop();
+      add("…the tide is out. Try again in a moment.", "oy silent");
     } finally {
       send.disabled = false;
       input.focus();
