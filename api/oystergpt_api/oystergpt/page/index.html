@@ -21,6 +21,8 @@
   @keyframes wobble { 0%,100% { transform: rotate(0) } 25% { transform: rotate(-8deg) scale(1.05) } 75% { transform: rotate(8deg) scale(1.05) } }
   h1 { margin: 8px 0 0; font-weight: 600; letter-spacing: .02em; }
   .sub { opacity: .6; font-size: 13px; margin: 0; }
+  .source { display: inline-block; margin-top: 6px; font-size: 13px; color: #9fd3e0; text-decoration: none; border-bottom: 1px dotted currentColor; }
+  .source:hover { color: var(--pearl); }
   #log { width: 100%; max-width: 620px; flex: 1; margin: 20px 0; display: flex; flex-direction: column; gap: 10px; }
   .msg { max-width: 80%; padding: 10px 14px; border-radius: 18px; animation: rise .25s ease-out; overflow-wrap: anywhere; }
   .you { align-self: flex-end; background: #1b6377; border-bottom-right-radius: 4px; }
@@ -43,6 +45,7 @@
   <div class="oyster" id="oyster">🦪</div>
   <h1>OysterGPT</h1>
   <p class="sub" id="sub">a large language mollusc</p>
+  <a class="source" href="https://github.com/montaguegabe/oyster-gpt" target="_blank" rel="noopener">read the research on GitHub</a>
 </header>
 <main id="log"></main>
 <form id="form">
